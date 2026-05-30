@@ -406,6 +406,18 @@ pub fn update_shortcuts<R: Runtime>(
     let mut registration_failures: Vec<(String, String, String)> = Vec::new();
 
     for (action_id, shortcut_str, shortcut) in shortcuts_to_register {
+        // Defensive: if the plugin still considers this hotkey registered
+        // (e.g. left over from a prior partial failure), unregister it first so
+        // the register below doesn't fail with "HotKey already registered".
+        if app.global_shortcut().is_registered(shortcut) {
+            if let Err(e) = app.global_shortcut().unregister(shortcut) {
+                eprintln!(
+                    "Failed to pre-unregister existing shortcut {}: {}",
+                    shortcut_str, e
+                );
+            }
+        }
+
         match app.global_shortcut().register(shortcut) {
             Ok(_) => {
                 eprintln!("Registered shortcut: {} -> {}", action_id, shortcut_str);
@@ -454,29 +466,30 @@ pub fn update_shortcuts<R: Runtime>(
     Ok(())
 }
 
-/// Unregister all currently registered shortcuts
+/// Unregister all currently registered shortcuts.
+///
+/// We unregister via the plugin's own `unregister_all()` rather than iterating
+/// our `RegisteredShortcuts` state. The state map can drift out of sync with the
+/// plugin's actual registry: when a `register()` call fails, the shortcut may
+/// remain registered in the plugin but never gets recorded in our state, so a
+/// state-driven unregister would leave it behind and the next registration would
+/// fail with "HotKey already registered". Clearing the plugin's registry
+/// directly guarantees a clean slate.
 fn unregister_all_shortcuts<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    if let Err(e) = app.global_shortcut().unregister_all() {
+        eprintln!("Failed to unregister all shortcuts: {}", e);
+    }
+
+    // Keep our state map in sync with the now-empty plugin registry.
     let state = app.state::<RegisteredShortcuts>();
-    let registered = match state.shortcuts.lock() {
+    let mut registered = match state.shortcuts.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
             eprintln!("Mutex poisoned in unregister_all_shortcuts, recovering...");
             poisoned.into_inner()
         }
     };
-
-    for (action_id, shortcut_str) in registered.iter() {
-        if let Ok(shortcut) = shortcut_str.parse::<Shortcut>() {
-            match app.global_shortcut().unregister(shortcut) {
-                Ok(_) => {
-                    eprintln!("Unregistered shortcut: {} -> {}", action_id, shortcut_str);
-                }
-                Err(e) => {
-                    eprintln!("Failed to unregister shortcut {}: {}", shortcut_str, e);
-                }
-            }
-        }
-    }
+    registered.clear();
 
     Ok(())
 }
