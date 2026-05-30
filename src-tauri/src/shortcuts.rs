@@ -109,6 +109,7 @@ pub fn handle_shortcut_action<R: Runtime>(app: &AppHandle<R>, action_id: &str) {
         "audio_recording" => handle_audio_shortcut(app),
         "screenshot" => handle_screenshot_shortcut(app),
         "solve" => handle_solve_shortcut(app),
+        "copy_response" => handle_copy_response_shortcut(app),
         "system_audio" => handle_system_audio_shortcut(app),
         custom_action => {
             // Emit custom action event for frontend to handle
@@ -301,6 +302,16 @@ fn handle_solve_shortcut<R: Runtime>(app: &AppHandle<R>) {
         // Emit event to trigger solve - frontend submits attached screenshots
         if let Err(e) = window.emit("trigger-solve", json!({})) {
             eprintln!("Failed to emit solve event: {}", e);
+        }
+    }
+}
+
+/// Handle copy response shortcut - copy the current AI response to clipboard
+fn handle_copy_response_shortcut<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        // Emit event to trigger copy - frontend copies the current response
+        if let Err(e) = window.emit("trigger-copy-response", json!({})) {
+            eprintln!("Failed to emit copy response event: {}", e);
         }
     }
 }

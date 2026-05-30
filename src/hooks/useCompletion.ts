@@ -936,6 +936,16 @@ export const useCompletion = () => {
     submit(config.solvePrompt || "Solve this");
   }, [state.isLoading, state.attachedFiles.length, submit]);
 
+  // Copy response shortcut handler: copy the current AI response to clipboard.
+  const handleCopyResponse = useCallback(() => {
+    if (!state.response) {
+      return;
+    }
+    navigator.clipboard.writeText(state.response).catch((error) => {
+      console.error("Failed to copy response to clipboard:", error);
+    });
+  }, [state.response]);
+
   useEffect(() => {
     let unlisten: any;
 
@@ -1016,14 +1026,17 @@ export const useCompletion = () => {
     globalShortcuts.registerInputRef(inputRef.current);
     globalShortcuts.registerScreenshotCallback(captureScreenshot);
     globalShortcuts.registerSolveCallback(handleSolve);
+    globalShortcuts.registerCopyResponseCallback(handleCopyResponse);
   }, [
     globalShortcuts.registerAudioCallback,
     globalShortcuts.registerInputRef,
     globalShortcuts.registerScreenshotCallback,
     globalShortcuts.registerSolveCallback,
+    globalShortcuts.registerCopyResponseCallback,
     toggleRecording,
     captureScreenshot,
     handleSolve,
+    handleCopyResponse,
     inputRef,
   ]);
 

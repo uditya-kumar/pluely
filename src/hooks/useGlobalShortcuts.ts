@@ -9,6 +9,7 @@ let globalEventListeners: {
   audio?: UnlistenFn;
   screenshot?: UnlistenFn;
   solve?: UnlistenFn;
+  copyResponse?: UnlistenFn;
   systemAudio?: UnlistenFn;
   customShortcut?: UnlistenFn;
   registrationError?: UnlistenFn;
@@ -18,12 +19,15 @@ let globalEventListeners: {
 let lastScreenshotEventTime = 0;
 // Global debounce for solve events to prevent duplicates
 let lastSolveEventTime = 0;
+// Global debounce for copy response events to prevent duplicates
+let lastCopyResponseEventTime = 0;
 
 // Global callback refs
 let globalInputRef: HTMLInputElement | null = null;
 let globalAudioCallback: (() => void) | null = null;
 let globalScreenshotCallback: (() => void | Promise<void>) | null = null;
 let globalSolveCallback: (() => void | Promise<void>) | null = null;
+let globalCopyResponseCallback: (() => void | Promise<void>) | null = null;
 let globalSystemAudioCallback: (() => void) | null = null;
 let globalCustomShortcutCallbacks: Map<string, () => void> = new Map();
 
@@ -32,6 +36,7 @@ export const useGlobalShortcuts = () => {
   const audioCallbackRef = useRef<(() => void) | null>(null);
   const screenshotCallbackRef = useRef<(() => void) | null>(null);
   const solveCallbackRef = useRef<(() => void) | null>(null);
+  const copyResponseCallbackRef = useRef<(() => void) | null>(null);
   const systemAudioCallbackRef = useRef<(() => void) | null>(null);
   const customShortcutCallbacksRef = useRef<Map<string, () => void>>(new Map());
 
@@ -101,6 +106,15 @@ export const useGlobalShortcuts = () => {
     []
   );
 
+  // Register copy response callback
+  const registerCopyResponseCallback = useCallback(
+    (callback: () => void | Promise<void>) => {
+      copyResponseCallbackRef.current = callback;
+      globalCopyResponseCallback = callback;
+    },
+    []
+  );
+
   // Register system audio callback
   const registerSystemAudioCallback = useCallback((callback: () => void) => {
     systemAudioCallbackRef.current = callback;
@@ -153,6 +167,13 @@ export const useGlobalShortcuts = () => {
             globalEventListeners.solve();
           } catch (error) {
             console.warn("Error cleaning up solve listener:", error);
+          }
+        }
+        if (globalEventListeners.copyResponse) {
+          try {
+            globalEventListeners.copyResponse();
+          } catch (error) {
+            console.warn("Error cleaning up copy response listener:", error);
           }
         }
         if (globalEventListeners.systemAudio) {
@@ -259,6 +280,40 @@ export const useGlobalShortcuts = () => {
         });
         globalEventListeners.solve = unlistenSolve;
 
+        // Listen for copy response trigger event with debouncing
+        const unlistenCopyResponse = await listen(
+          "trigger-copy-response",
+          () => {
+            const now = Date.now();
+            const timeSinceLastEvent = now - lastCopyResponseEventTime;
+
+            // Debounce copy response events (300ms minimum interval)
+            if (timeSinceLastEvent < 300) {
+              return;
+            }
+
+            lastCopyResponseEventTime = now;
+
+            if (globalCopyResponseCallback) {
+              try {
+                Promise.resolve(globalCopyResponseCallback()).catch((error) => {
+                  console.error("Copy response shortcut callback failed:", error);
+                });
+              } catch (error) {
+                console.error(
+                  "Failed to run copy response shortcut callback:",
+                  error
+                );
+              }
+            } else {
+              console.warn(
+                "Copy response shortcut triggered but no callback registered."
+              );
+            }
+          }
+        );
+        globalEventListeners.copyResponse = unlistenCopyResponse;
+
         // Listen for system audio toggle event
         const unlistenSystemAudio = await listen("toggle-system-audio", () => {
           if (globalSystemAudioCallback) {
@@ -310,6 +365,7 @@ export const useGlobalShortcuts = () => {
     registerAudioCallback,
     registerScreenshotCallback,
     registerSolveCallback,
+    registerCopyResponseCallback,
     registerSystemAudioCallback,
     registerCustomShortcutCallback,
     unregisterCustomShortcutCallback,

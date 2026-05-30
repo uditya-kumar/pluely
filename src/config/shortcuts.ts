@@ -82,4 +82,14 @@ export const DEFAULT_SHORTCUT_ACTIONS: ShortcutAction[] = [
       linux: "ctrl+shift+x",
     },
   },
+  {
+    id: "copy_response",
+    name: "Copy Response",
+    description: "Copy the current AI response to the clipboard",
+    defaultKey: {
+      macos: "cmd+shift+c",
+      windows: "ctrl+shift+c",
+      linux: "ctrl+shift+c",
+    },
+  },
 ];
