@@ -937,13 +937,21 @@ export const useCompletion = () => {
   }, [state.isLoading, state.attachedFiles.length, submit]);
 
   // Copy response shortcut handler: copy the current AI response to clipboard.
-  const handleCopyResponse = useCallback(() => {
+  // Use the Tauri clipboard plugin (routes through Rust) instead of the web
+  // navigator.clipboard API, which requires the document to be focused and so
+  // silently fails when Pluely's window isn't focused.
+  const handleCopyResponse = useCallback(async () => {
     if (!state.response) {
       return;
     }
-    navigator.clipboard.writeText(state.response).catch((error) => {
+    try {
+      const { writeText } = await import(
+        "@tauri-apps/plugin-clipboard-manager"
+      );
+      await writeText(state.response);
+    } catch (error) {
       console.error("Failed to copy response to clipboard:", error);
-    });
+    }
   }, [state.response]);
 
   useEffect(() => {
