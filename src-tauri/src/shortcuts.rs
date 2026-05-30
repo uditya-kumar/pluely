@@ -43,6 +43,7 @@ impl Default for LicenseState {
 }
 
 impl LicenseState {
+    #[allow(dead_code)]
     pub fn is_active(&self) -> bool {
         self.has_active_license.load(Ordering::Relaxed)
     }
@@ -126,17 +127,6 @@ pub fn handle_shortcut_action<R: Runtime>(app: &AppHandle<R>, action_id: &str) {
 }
 
 pub fn start_move_window<R: Runtime>(app: &AppHandle<R>, direction: &str) {
-    {
-        let license_state = app.state::<LicenseState>();
-        if !license_state.is_active() {
-            eprintln!(
-                "Ignoring move_window start for direction '{}' - license inactive",
-                direction
-            );
-            return;
-        }
-    }
-
     let state = app.state::<MoveWindowState>();
     let mut tasks = match state.tasks.lock() {
         Ok(guard) => guard,
@@ -357,19 +347,9 @@ pub fn update_shortcuts<R: Runtime>(
 
     let mut shortcuts_to_register = Vec::new();
 
-    let has_license = {
-        let license_state = app.state::<LicenseState>();
-        license_state.is_active()
-    };
-
     for (action_id, binding) in &config.bindings {
         if binding.enabled && !binding.key.is_empty() {
             if action_id == "move_window" {
-                if !has_license {
-                    eprintln!("Skipping move_window registration - license inactive");
-                    continue;
-                }
-
                 let modifiers = binding.key.trim();
                 if modifiers.is_empty() {
                     continue;
