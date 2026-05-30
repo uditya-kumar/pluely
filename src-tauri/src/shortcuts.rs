@@ -567,11 +567,114 @@ pub fn set_app_icon_visibility<R: Runtime>(app: AppHandle<R>, visible: bool) -> 
 
     #[cfg(target_os = "windows")]
     {
-        // On Windows, control taskbar icon visibility
+        // On Windows, control taskbar icon visibility.
+        //
+        // `set_skip_taskbar` alone is unreliable: it removes the taskbar button
+        // via ITaskbarList::DeleteTab, but Windows re-adds the button whenever
+        // the window regains focus (which the overlay does constantly). The
+        // reliable fix is to switch the window's extended style to
+        // WS_EX_TOOLWINDOW (a tool window is never shown in the taskbar) and
+        // clear WS_EX_APPWINDOW. The style change only applies to the taskbar
+        // while the window is hidden, so we hide -> change style -> show.
         if let Some(window) = app.get_webview_window("main") {
             window
                 .set_skip_taskbar(!visible)
                 .map_err(|e| format!("Failed to set taskbar visibility: {}", e))?;
+
+            match window.hwnd() {
+                Ok(raw_hwnd) => {
+                    use windows_sys::Win32::Foundation::HWND;
+                    use windows_sys::Win32::UI::WindowsAndMessaging::{
+                        GetAncestor, GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos,
+                        ShowWindow, GA_ROOT, GWL_EXSTYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+                        SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_HIDE, WS_EX_APPWINDOW,
+                        WS_EX_TOOLWINDOW,
+                    };
+
+                    let was_visible = window.is_visible().unwrap_or(true);
+
+                    // SAFETY: raw_hwnd is a valid top-level window handle owned
+                    // by this window; we resolve its root ancestor to be safe.
+                    unsafe {
+                        let mut hwnd = raw_hwnd.0 as HWND;
+                        let root = GetAncestor(hwnd, GA_ROOT);
+                        if !root.is_null() {
+                            hwnd = root;
+                        }
+
+                        let before = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+                        let mut ex_style = before;
+                        if visible {
+                            ex_style |= WS_EX_APPWINDOW as isize;
+                            ex_style &= !(WS_EX_TOOLWINDOW as isize);
+                        } else {
+                            ex_style |= WS_EX_TOOLWINDOW as isize;
+                            ex_style &= !(WS_EX_APPWINDOW as isize);
+                        }
+                        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style);
+                        SetWindowPos(
+                            hwnd,
+                            std::ptr::null_mut(),
+                            0,
+                            0,
+                            0,
+                            0,
+                            SWP_FRAMECHANGED
+                                | SWP_NOACTIVATE
+                                | SWP_NOMOVE
+                                | SWP_NOSIZE
+                                | SWP_NOZORDER,
+                        );
+
+                        // Hide now. The shell only re-evaluates taskbar
+                        // presence (WS_EX_TOOLWINDOW) across a hide->show that
+                        // it actually processes, so we re-show after the message
+                        // loop has pumped (deferred below).
+                        if was_visible {
+                            ShowWindow(hwnd, SW_HIDE);
+                        }
+
+                        eprintln!(
+                            "set_app_icon_visibility(visible={}): hwnd={:?} ex_style {:#x} -> {:#x} (was_visible={})",
+                            visible, hwnd, before, ex_style, was_visible
+                        );
+                    }
+
+                    // Re-show on the main thread after a short delay so the
+                    // taskbar button is dropped/re-added per the new style.
+                    if was_visible {
+                        let app_handle = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            sleep(Duration::from_millis(80)).await;
+                            let app_for_main = app_handle.clone();
+                            let _ = app_handle.run_on_main_thread(move || {
+                                if let Some(w) = app_for_main.get_webview_window("main") {
+                                    if let Ok(h) = w.hwnd() {
+                                        use windows_sys::Win32::Foundation::HWND;
+                                        use windows_sys::Win32::UI::WindowsAndMessaging::{
+                                            GetAncestor, ShowWindow, GA_ROOT, SW_SHOWNA,
+                                        };
+                                        // SAFETY: valid top-level window handle.
+                                        unsafe {
+                                            let mut hh = h.0 as HWND;
+                                            let r = GetAncestor(hh, GA_ROOT);
+                                            if !r.is_null() {
+                                                hh = r;
+                                            }
+                                            // SW_SHOWNA = show without activating,
+                                            // to avoid stealing focus.
+                                            ShowWindow(hh, SW_SHOWNA);
+                                        }
+                                    }
+                                }
+                            });
+                        });
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to get main window hwnd: {}", e);
+                }
+            }
         } else {
             eprintln!("Main window not found on Windows");
         }
