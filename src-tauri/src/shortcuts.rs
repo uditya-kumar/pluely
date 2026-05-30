@@ -200,20 +200,14 @@ fn handle_toggle_window<R: Runtime>(app: &AppHandle<R>) {
         let mut is_hidden = state.is_hidden.lock().unwrap();
         *is_hidden = !*is_hidden;
 
+        // On Windows visibility is handled entirely in the frontend via the
+        // `toggle-window-visibility` event (CSS show/hide); the OS window stays
+        // shown the whole time. So we only emit the event and never call
+        // show()/set_focus(), which would steal focus from the user's current
+        // window. (Use the dedicated `focus_input` shortcut to bring Pluely
+        // forward and focus the input.)
         if let Err(e) = window.emit("toggle-window-visibility", *is_hidden) {
             eprintln!("Failed to emit toggle-window-visibility event: {}", e);
-        }
-
-        if !*is_hidden {
-            if let Err(e) = window.show() {
-                eprintln!("Failed to show window: {}", e);
-            }
-            if let Err(e) = window.set_focus() {
-                eprintln!("Failed to focus window: {}", e);
-            }
-            if let Err(e) = window.emit("focus-text-input", json!({})) {
-                eprintln!("Failed to emit focus-text-input event: {}", e);
-            }
         }
         return;
     }
