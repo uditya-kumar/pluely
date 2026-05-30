@@ -79,23 +79,12 @@ export const useApp = () => {
       (event) => {
         const platform = navigator.platform.toLowerCase();
         if (typeof event.payload === "boolean" && platform.includes("win")) {
+          // Drive visibility purely through React state. Both the menu bar and
+          // the response popover read `isHidden` and toggle the `hidden` class,
+          // so they hide/show together without flicker. (Previously the popover
+          // was hidden via direct DOM manipulation of display/data-state, which
+          // fought Radix's open/close animations and caused a flicker.)
           setIsHidden(!event.payload);
-          // find popover open and close it
-          const popover = document.getElementById("popover-content");
-          // set display to none, change data-state to closed
-          if (popover) {
-            popover.style.setProperty("display", "none", "important");
-            // update the data-state to closed
-            popover.setAttribute("data-state", "closed");
-
-            // Also find and update the popover trigger's data-state
-            const popoverTriggers = document.querySelectorAll(
-              '[data-slot="popover-trigger"]'
-            );
-            popoverTriggers.forEach((trigger) => {
-              trigger.setAttribute("data-state", "closed");
-            });
-          }
         }
       }
     );
