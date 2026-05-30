@@ -43,6 +43,9 @@ export type ScreenshotMode = "auto" | "manual";
 export interface ScreenshotConfig {
   mode: ScreenshotMode;
   autoPrompt: string;
+  // Prompt sent with all accumulated screenshots when the "solve" shortcut is
+  // pressed in manual mode.
+  solvePrompt: string;
   enabled: boolean;
 }
 

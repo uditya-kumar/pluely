@@ -14,6 +14,7 @@ export const ScreenshotConfigs = ({
   screenshotConfiguration,
   handleScreenshotModeChange,
   handleScreenshotPromptChange,
+  handleScreenshotSolvePromptChange,
   handleScreenshotEnabledChange,
   hasActiveLicense,
 }: UseSettingsReturn) => {
@@ -119,6 +120,23 @@ export const ScreenshotConfigs = ({
             />
             <p className="text-xs text-muted-foreground">
               This prompt will be used automatically when screenshots are taken
+            </p>
+          </div>
+        )}
+
+        {/* Solve Prompt Input - Only show when manual mode is selected */}
+        {screenshotConfiguration.mode === "manual" && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Solve Prompt</Label>
+            <Input
+              placeholder="Enter prompt sent with the solve shortcut..."
+              value={screenshotConfiguration.solvePrompt}
+              onChange={(e) => handleScreenshotSolvePromptChange(e.target.value)}
+              className="w-full h-11 border-1 border-input/50 focus:border-primary/50 transition-colors"
+            />
+            <p className="text-xs text-muted-foreground">
+              Capture multiple screenshots, then press the Solve shortcut to send
+              them all to AI with this prompt.
             </p>
           </div>
         )}

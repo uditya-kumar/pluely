@@ -8,6 +8,7 @@ let globalEventListeners: {
   focus?: UnlistenFn;
   audio?: UnlistenFn;
   screenshot?: UnlistenFn;
+  solve?: UnlistenFn;
   systemAudio?: UnlistenFn;
   customShortcut?: UnlistenFn;
   registrationError?: UnlistenFn;
@@ -15,11 +16,14 @@ let globalEventListeners: {
 
 // Global debounce for screenshot events to prevent duplicates
 let lastScreenshotEventTime = 0;
+// Global debounce for solve events to prevent duplicates
+let lastSolveEventTime = 0;
 
 // Global callback refs
 let globalInputRef: HTMLInputElement | null = null;
 let globalAudioCallback: (() => void) | null = null;
 let globalScreenshotCallback: (() => void | Promise<void>) | null = null;
+let globalSolveCallback: (() => void | Promise<void>) | null = null;
 let globalSystemAudioCallback: (() => void) | null = null;
 let globalCustomShortcutCallbacks: Map<string, () => void> = new Map();
 
@@ -27,6 +31,7 @@ export const useGlobalShortcuts = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const audioCallbackRef = useRef<(() => void) | null>(null);
   const screenshotCallbackRef = useRef<(() => void) | null>(null);
+  const solveCallbackRef = useRef<(() => void) | null>(null);
   const systemAudioCallbackRef = useRef<(() => void) | null>(null);
   const customShortcutCallbacksRef = useRef<Map<string, () => void>>(new Map());
 
@@ -87,6 +92,15 @@ export const useGlobalShortcuts = () => {
     []
   );
 
+  // Register solve callback
+  const registerSolveCallback = useCallback(
+    (callback: () => void | Promise<void>) => {
+      solveCallbackRef.current = callback;
+      globalSolveCallback = callback;
+    },
+    []
+  );
+
   // Register system audio callback
   const registerSystemAudioCallback = useCallback((callback: () => void) => {
     systemAudioCallbackRef.current = callback;
@@ -132,6 +146,13 @@ export const useGlobalShortcuts = () => {
             globalEventListeners.screenshot();
           } catch (error) {
             console.warn("Error cleaning up screenshot listener:", error);
+          }
+        }
+        if (globalEventListeners.solve) {
+          try {
+            globalEventListeners.solve();
+          } catch (error) {
+            console.warn("Error cleaning up solve listener:", error);
           }
         }
         if (globalEventListeners.systemAudio) {
@@ -212,6 +233,32 @@ export const useGlobalShortcuts = () => {
         });
         globalEventListeners.screenshot = unlistenScreenshot;
 
+        // Listen for solve trigger event with debouncing
+        const unlistenSolve = await listen("trigger-solve", () => {
+          const now = Date.now();
+          const timeSinceLastEvent = now - lastSolveEventTime;
+
+          // Debounce solve events (300ms minimum interval)
+          if (timeSinceLastEvent < 300) {
+            return;
+          }
+
+          lastSolveEventTime = now;
+
+          if (globalSolveCallback) {
+            try {
+              Promise.resolve(globalSolveCallback()).catch((error) => {
+                console.error("Solve shortcut callback failed:", error);
+              });
+            } catch (error) {
+              console.error("Failed to run solve shortcut callback:", error);
+            }
+          } else {
+            console.warn("Solve shortcut triggered but no callback registered.");
+          }
+        });
+        globalEventListeners.solve = unlistenSolve;
+
         // Listen for system audio toggle event
         const unlistenSystemAudio = await listen("toggle-system-audio", () => {
           if (globalSystemAudioCallback) {
@@ -262,6 +309,7 @@ export const useGlobalShortcuts = () => {
     registerInputRef,
     registerAudioCallback,
     registerScreenshotCallback,
+    registerSolveCallback,
     registerSystemAudioCallback,
     registerCustomShortcutCallback,
     unregisterCustomShortcutCallback,

@@ -916,6 +916,26 @@ export const useCompletion = () => {
     }
   }, [handleScreenshotSubmit]);
 
+  // Solve shortcut handler: submit all accumulated screenshots with the
+  // configured solve prompt. Only active in manual mode.
+  const handleSolve = useCallback(() => {
+    const config = screenshotConfigRef.current;
+    if (config.mode !== "manual") {
+      return;
+    }
+    if (state.isLoading) {
+      return;
+    }
+    if (state.attachedFiles.length === 0) {
+      setState((prev) => ({
+        ...prev,
+        error: "No screenshots captured. Take a screenshot first.",
+      }));
+      return;
+    }
+    submit(config.solvePrompt || "Solve this");
+  }, [state.isLoading, state.attachedFiles.length, submit]);
+
   useEffect(() => {
     let unlisten: any;
 
@@ -995,12 +1015,15 @@ export const useCompletion = () => {
     globalShortcuts.registerAudioCallback(toggleRecording);
     globalShortcuts.registerInputRef(inputRef.current);
     globalShortcuts.registerScreenshotCallback(captureScreenshot);
+    globalShortcuts.registerSolveCallback(handleSolve);
   }, [
     globalShortcuts.registerAudioCallback,
     globalShortcuts.registerInputRef,
     globalShortcuts.registerScreenshotCallback,
+    globalShortcuts.registerSolveCallback,
     toggleRecording,
     captureScreenshot,
+    handleSolve,
     inputRef,
   ]);
 

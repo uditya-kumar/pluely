@@ -71,4 +71,15 @@ export const DEFAULT_SHORTCUT_ACTIONS: ShortcutAction[] = [
       linux: "ctrl+shift+s",
     },
   },
+  {
+    id: "solve",
+    name: "Solve",
+    description:
+      "Send all captured screenshots to AI with the solve prompt (manual mode)",
+    defaultKey: {
+      macos: "cmd+shift+x",
+      windows: "ctrl+shift+x",
+      linux: "ctrl+shift+x",
+    },
+  },
 ];

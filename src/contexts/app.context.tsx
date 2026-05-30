@@ -124,6 +124,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     useState<ScreenshotConfig>({
       mode: "manual",
       autoPrompt: "Analyze this screenshot and provide insights",
+      solvePrompt: "Solve this",
       enabled: true,
     });
 
@@ -163,6 +164,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setScreenshotConfiguration({
         mode: "auto",
         autoPrompt: "Analyze the screenshot and provide insights",
+        solvePrompt: "Solve this",
         enabled: false,
       });
       // Set the flag to true so that we don't change the mode again
@@ -210,6 +212,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             autoPrompt:
               parsed.autoPrompt ||
               "Analyze this screenshot and provide insights",
+            solvePrompt: parsed.solvePrompt || "Solve this",
             enabled: parsed.enabled !== undefined ? parsed.enabled : false,
           });
         }

@@ -8,6 +8,7 @@ export interface UseSettingsReturn {
   >;
   handleScreenshotModeChange: (value: ScreenshotMode) => void;
   handleScreenshotPromptChange: (value: string) => void;
+  handleScreenshotSolvePromptChange: (value: string) => void;
   handleScreenshotEnabledChange: (enabled: boolean) => void;
   allAiProviders: TYPE_PROVIDER[];
   allSttProviders: TYPE_PROVIDER[];

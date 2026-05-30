@@ -49,6 +49,15 @@ export const useSettings = () => {
     );
   };
 
+  const handleScreenshotSolvePromptChange = (value: string) => {
+    const newConfig = { ...screenshotConfiguration, solvePrompt: value };
+    setScreenshotConfiguration(newConfig);
+    safeLocalStorage.setItem(
+      STORAGE_KEYS.SCREENSHOT_CONFIG,
+      JSON.stringify(newConfig)
+    );
+  };
+
   const handleScreenshotEnabledChange = (enabled: boolean) => {
     if (!enabled && !hasActiveLicense) {
       return;
@@ -99,6 +108,7 @@ export const useSettings = () => {
     setScreenshotConfiguration,
     handleScreenshotModeChange,
     handleScreenshotPromptChange,
+    handleScreenshotSolvePromptChange,
     handleScreenshotEnabledChange,
     allAiProviders,
     allSttProviders,

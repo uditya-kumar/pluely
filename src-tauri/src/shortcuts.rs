@@ -108,6 +108,7 @@ pub fn handle_shortcut_action<R: Runtime>(app: &AppHandle<R>, action_id: &str) {
         "move_window_right" => handle_move_window(app, "right"),
         "audio_recording" => handle_audio_shortcut(app),
         "screenshot" => handle_screenshot_shortcut(app),
+        "solve" => handle_solve_shortcut(app),
         "system_audio" => handle_system_audio_shortcut(app),
         custom_action => {
             // Emit custom action event for frontend to handle
@@ -279,6 +280,27 @@ fn handle_screenshot_shortcut<R: Runtime>(app: &AppHandle<R>) {
         // Emit event to trigger screenshot - frontend will determine auto/manual mode
         if let Err(e) = window.emit("trigger-screenshot", json!({})) {
             eprintln!("Failed to emit screenshot event: {}", e);
+        }
+    }
+}
+
+/// Handle solve shortcut - submit all accumulated screenshots to AI
+fn handle_solve_shortcut<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        // Ensure window is visible so the user sees the response
+        if let Ok(false) = window.is_visible() {
+            if let Err(e) = window.show() {
+                eprintln!("Failed to show window: {}", e);
+                return;
+            }
+            if let Err(e) = window.set_focus() {
+                eprintln!("Failed to focus window: {}", e);
+            }
+        }
+
+        // Emit event to trigger solve - frontend submits attached screenshots
+        if let Err(e) = window.emit("trigger-solve", json!({})) {
+            eprintln!("Failed to emit solve event: {}", e);
         }
     }
 }
