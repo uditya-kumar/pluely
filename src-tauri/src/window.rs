@@ -19,6 +19,17 @@ pub fn setup_main_window(app: &mut App) -> Result<(), Box<dyn std::error::Error>
 
     position_window_top_center(&window, TOP_OFFSET)?;
 
+    // Quit the whole app when the main window is closed. Without this, closing
+    // the main window (e.g. via the taskbar thumbnail's X) only destroys that
+    // window while the pre-created (hidden) dashboard window keeps the process
+    // alive in the background.
+    let app_handle = window.app_handle().clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { .. } = event {
+            app_handle.exit(0);
+        }
+    });
+
     // Set window as non-focusable on Windows
     // #[cfg(target_os = "windows")]
     // {
