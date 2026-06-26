@@ -11,6 +11,11 @@ use tokio::time::{sleep, Duration};
 use tauri_nspanel::ManagerExt;
 
 use crate::window::show_dashboard_window;
+
+// Global state for always-on-top setting (used by Windows refresh loop)
+#[cfg(target_os = "windows")]
+static ALWAYS_ON_TOP_ENABLED: AtomicBool = AtomicBool::new(false);
+
 // State for window visibility
 pub struct WindowVisibility {
     #[allow(dead_code)]
@@ -682,18 +687,80 @@ pub fn set_app_icon_visibility<R: Runtime>(app: AppHandle<R>, visible: bool) -> 
     Ok(())
 }
 
+/// Helper function to set window topmost on Windows
+#[cfg(target_os = "windows")]
+fn set_window_topmost(hwnd: isize, enabled: bool) {
+    use windows_sys::Win32::Foundation::HWND;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        SetWindowPos, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE,
+    };
+
+    let hwnd_value = hwnd as HWND;
+    let insert_after = if enabled { HWND_TOPMOST } else { HWND_NOTOPMOST };
+
+    unsafe {
+        SetWindowPos(
+            hwnd_value,
+            insert_after,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        );
+    }
+}
+
 /// Tauri command to set always on top state
 #[tauri::command]
 pub fn set_always_on_top<R: Runtime>(app: AppHandle<R>, enabled: bool) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("main") {
-        window
-            .set_always_on_top(enabled)
-            .map_err(|e| format!("Failed to set always on top: {}", e))?;
+        #[cfg(target_os = "windows")]
+        {
+            ALWAYS_ON_TOP_ENABLED.store(enabled, Ordering::SeqCst);
+
+            if let Ok(hwnd) = window.hwnd() {
+                set_window_topmost(hwnd.0 as isize, enabled);
+            }
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            window
+                .set_always_on_top(enabled)
+                .map_err(|e| format!("Failed to set always on top: {}", e))?;
+        }
     } else {
         return Err("Main window not found".to_string());
     }
 
     Ok(())
+}
+
+/// Start a background task that periodically re-asserts topmost status on Windows.
+/// This helps maintain always-on-top over fullscreen applications.
+#[cfg(target_os = "windows")]
+pub fn start_topmost_refresh_task<R: Runtime>(app: AppHandle<R>) {
+    use std::thread;
+    use std::time::Duration as StdDuration;
+
+    thread::spawn(move || {
+        loop {
+            thread::sleep(StdDuration::from_millis(500));
+
+            if ALWAYS_ON_TOP_ENABLED.load(Ordering::SeqCst) {
+                if let Some(window) = app.get_webview_window("main") {
+                    if let Ok(visible) = window.is_visible() {
+                        if visible {
+                            if let Ok(hwnd) = window.hwnd() {
+                                set_window_topmost(hwnd.0 as isize, true);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 /// Handle toggle dashboard shortcut

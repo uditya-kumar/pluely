@@ -197,6 +197,11 @@ pub fn run() {
             if let Err(e) = shortcuts::setup_global_shortcuts(app.handle()) {
                 eprintln!("Failed to setup global shortcuts: {}", e);
             }
+
+            // Start the topmost refresh task on Windows to maintain always-on-top over fullscreen apps
+            #[cfg(target_os = "windows")]
+            shortcuts::start_topmost_refresh_task(app.handle().clone());
+
             Ok(())
         });
 

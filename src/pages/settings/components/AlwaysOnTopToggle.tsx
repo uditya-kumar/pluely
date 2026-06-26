@@ -29,7 +29,7 @@ export const AlwaysOnTopToggle = ({ className }: AlwaysOnTopToggleProps) => {
             </Label>
             <p className="text-xs text-muted-foreground mt-1">
               {customizable.alwaysOnTop.isEnabled
-                ? "Window stays above all other applications (default)"
+                ? "Window stays above all other applications"
                 : "Window behaves like normal applications"}
             </p>
           </div>
