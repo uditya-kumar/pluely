@@ -61,8 +61,8 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  --border: oklch(0.895 0 0);
+  --input: oklch(0.895 0 0);
   --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -77,6 +77,15 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Floating surfaces (overlay input bar + response panel). Border and shadow
+     are opacity independent, so the panels stay readable on a white background
+     no matter how high the transparency slider is set. */
+  --surface-border: oklch(0.82 0 0);
+  --surface-shadow: 0 1px 2px oklch(0 0 0 / 8%), 0 8px 24px -6px oklch(0 0 0 / 18%),
+    0 20px 48px -14px oklch(0 0 0 / 14%);
+  --surface-field: oklch(0.965 0 0);
+  --surface-header: oklch(0.955 0 0);
 }
 
 .dark {
@@ -133,6 +142,26 @@
     from var(--popover) r g b / var(--opacity, 1)
   ) !important;
   backdrop-filter: var(--backdrop-blur, none);
+}
+
+/* Light mode only: dark mode keeps its existing flat, borderless look.
+   On a white desktop the near-white card/popover would otherwise melt into the
+   background, so give the floating surfaces a real edge and drop shadow. */
+:root:not(.dark) .overlay-surface,
+:root:not(.dark) [data-slot="popover-content"] {
+  border-color: var(--surface-border);
+  box-shadow: var(--surface-shadow);
+}
+
+/* The input is transparent by default, which lets the desktop show through the
+   overlay card in light mode. Fill it so it reads as an actual field. */
+:root:not(.dark) .overlay-surface [data-slot="input"] {
+  background-color: var(--surface-field);
+}
+
+/* Response panel header band */
+:root:not(.dark) .overlay-surface-header {
+  background-color: var(--surface-header);
 }
 
 * {

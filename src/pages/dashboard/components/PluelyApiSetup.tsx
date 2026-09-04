@@ -364,11 +364,11 @@ export const PluelyApiSetup = () => {
                             {model?.modality}
                           </div>
                           {model?.isAvailable ? (
-                            <div className="text-xs text-orange-600 bg-white rounded-full px-2">
+                            <div className="text-xs text-orange-600 dark:text-orange-400 bg-background border border-input/50 rounded-full px-2">
                               {model?.provider}
                             </div>
                           ) : (
-                            <div className="text-xs text-red-600 bg-white rounded-full px-2">
+                            <div className="text-xs text-red-600 dark:text-red-400 bg-background border border-input/50 rounded-full px-2">
                               Not Available
                             </div>
                           )}

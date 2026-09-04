@@ -95,6 +95,7 @@ const AutoSpeechVADInternal = ({
     <>
       <Button
         size="icon"
+        variant="outline"
         onClick={() => {
           if (vad.listening) {
             vad.pause();

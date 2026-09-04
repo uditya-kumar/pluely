@@ -1,15 +1,36 @@
 import { useTheme } from "@/contexts";
 import { Header, Label, Slider, Button } from "@/components";
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components";
+import { cn } from "@/lib/utils";
+
+const THEME_OPTIONS = [
+  {
+    value: "light" as const,
+    label: "Light",
+    icon: SunIcon,
+    description: "Light theme for better visibility in bright environments",
+  },
+  {
+    value: "dark" as const,
+    label: "Dark",
+    icon: MoonIcon,
+    description: "Dark theme for comfortable viewing in low light",
+  },
+  {
+    value: "system" as const,
+    label: "System",
+    icon: MonitorIcon,
+    description: "Follows your operating system appearance",
+  },
+];
 
 export const Theme = () => {
-  const { theme, transparency, setTheme, onSetTransparency } = useTheme();
+  const { theme, resolvedTheme, transparency, setTheme, onSetTransparency } =
+    useTheme();
+
+  const activeOption =
+    THEME_OPTIONS.find((option) => option.value === theme) ?? THEME_OPTIONS[2];
+  const ActiveIcon = activeOption.icon;
 
   return (
     <div id="theme" className="relative space-y-3">
@@ -19,61 +40,43 @@ export const Theme = () => {
         isMainTitle
       />
 
-      {/* Theme Toggle */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div>
-              <Label className="text-sm font-medium flex items-center gap-2">
-                {theme === "system" ? (
-                  <>
-                    <MonitorIcon className="h-4 w-4" />
-                    System
-                  </>
-                ) : theme === "light" ? (
-                  <>
-                    <SunIcon className="h-4 w-4" />
-                    Light Mode
-                  </>
-                ) : (
-                  <>
-                    <MoonIcon className="h-4 w-4" />
-                    Dark Mode
-                  </>
-                )}
-              </Label>
-              <p className="text-xs text-muted-foreground mt-1">
-                {theme === "light"
-                  ? "Using light theme for better visibility in bright environments"
-                  : "Using dark theme for comfortable viewing in low light"}
-              </p>
-            </div>
+      {/* Appearance Toggle */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <ActiveIcon className="h-4 w-4" />
+              {activeOption.label}
+              {theme === "system" ? (
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({resolvedTheme === "dark" ? "dark" : "light"})
+                </span>
+              ) : null}
+            </Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              {activeOption.description}
+            </p>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                {theme === "system" ? (
-                  <MonitorIcon className="h-[1.2rem] w-[1.2rem]" />
-                ) : (
-                  <>
-                    <SunIcon className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-                    <MoonIcon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-                  </>
+
+          <div className="flex items-center gap-1 rounded-xl border border-input/60 bg-muted/40 p-1">
+            {THEME_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                size="sm"
+                variant={theme === option.value ? "default" : "ghost"}
+                onClick={() => setTheme(option.value)}
+                title={option.description}
+                aria-pressed={theme === option.value}
+                className={cn(
+                  "gap-1.5",
+                  theme === option.value ? "" : "text-muted-foreground"
                 )}
+              >
+                <option.icon className="h-4 w-4" />
+                {option.label}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTheme("light")}>
-                Light
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>
-                Dark
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>
-                System
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            ))}
+          </div>
         </div>
       </div>
 

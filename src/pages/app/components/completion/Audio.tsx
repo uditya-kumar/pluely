@@ -31,6 +31,7 @@ export const Audio = ({
         ) : (
           <Button
             size="icon"
+            variant="outline"
             onClick={() => {
               setEnableVAD(!enableVAD);
             }}

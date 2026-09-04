@@ -26,6 +26,7 @@ export const Screenshot = ({
   return (
     <Button
       size="icon"
+      variant="outline"
       className="cursor-pointer"
       title={
         !supportsImages

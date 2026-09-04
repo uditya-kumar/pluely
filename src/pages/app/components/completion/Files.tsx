@@ -34,6 +34,7 @@ export const Files = ({
         <PopoverTrigger asChild>
           <Button
             size="icon"
+            variant="outline"
             onClick={() => {
               if (attachedFiles.length === 0) {
                 // If no files, directly open file picker

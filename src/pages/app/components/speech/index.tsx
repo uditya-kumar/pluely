@@ -185,11 +185,14 @@ export const SystemAudio = (props: useSystemAudioType) => {
       <PopoverTrigger asChild>
         <Button
           size="icon"
+          variant="outline"
           title={getButtonTitle()}
           onClick={handleToggleCapture}
           className={cn(
-            capturing && "bg-green-50 hover:bg-green-100",
-            error && "bg-red-100 hover:bg-red-200"
+            capturing &&
+              "bg-green-50 hover:bg-green-100 border-green-300 dark:bg-green-950/60 dark:hover:bg-green-900/60 dark:border-green-900",
+            error &&
+              "bg-red-100 hover:bg-red-200 border-red-300 dark:bg-red-950/60 dark:hover:bg-red-900/60 dark:border-red-900"
           )}
         >
           {getButtonIcon()}

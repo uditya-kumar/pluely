@@ -1,7 +1,18 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { emit, listen } from "@tauri-apps/api/event";
 import { STORAGE_KEYS } from "@/config/";
 
 type Theme = "dark" | "light" | "system";
+type ResolvedTheme = "dark" | "light";
+
+// Broadcast so the overlay window and the dashboard window stay in sync
+// immediately, without waiting for a storage event.
+const THEME_SYNC_EVENT = "pluely-theme-sync";
+
+type ThemeSyncPayload = {
+  theme?: Theme;
+  transparency?: number;
+};
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -11,6 +22,7 @@ type ThemeProviderProps = {
 
 type ThemeProviderState = {
   theme: Theme;
+  resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
   transparency: number;
   onSetTransparency: (transparency: number) => void;
@@ -18,12 +30,16 @@ type ThemeProviderState = {
 
 const initialState: ThemeProviderState = {
   theme: "system",
+  resolvedTheme: "dark",
   setTheme: () => null,
   transparency: 10,
   onSetTransparency: () => null,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
+
+const systemPrefersDark = () =>
+  window.matchMedia("(prefers-color-scheme: dark)").matches;
 
 export function ThemeProvider({
   children,
@@ -34,13 +50,14 @@ export function ThemeProvider({
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   );
+  const [isSystemDark, setIsSystemDark] = useState<boolean>(systemPrefersDark);
   const [transparency, setTransparency] = useState<number>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.TRANSPARENCY);
     return stored ? parseInt(stored, 10) : 10;
   });
 
-  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  const isSystemThemeDark = mediaQuery.matches;
+  const resolvedTheme: ResolvedTheme =
+    theme === "system" ? (isSystemDark ? "dark" : "light") : theme;
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -53,41 +70,37 @@ export function ThemeProvider({
     };
 
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+
+    const unlisten = listen<ThemeSyncPayload>(THEME_SYNC_EVENT, ({ payload }) => {
+      if (payload?.theme) {
+        setTheme(payload.theme);
+      }
+      if (typeof payload?.transparency === "number") {
+        setTransparency(payload.transparency);
+      }
+    });
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      unlisten.then((stop) => stop()).catch(() => {});
+    };
   }, [storageKey]);
+
+  // Follow the OS preference while the theme is set to "system"
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent) => setIsSystemDark(e.matches);
+
+    mediaQuery.addEventListener("change", onChange);
+    return () => mediaQuery.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;
 
-    const applyTheme = (currentTheme: Theme) => {
-      root.classList.remove("light", "dark");
-
-      if (currentTheme === "system") {
-        const systemTheme = mediaQuery.matches ? "dark" : "light";
-        root.classList.add(systemTheme);
-      } else {
-        root.classList.add(currentTheme);
-      }
-    };
-
-    const updateTheme = () => {
-      if (theme === "system") {
-        applyTheme("system");
-      }
-    };
-
-    applyTheme(theme);
-
-    if (theme === "system") {
-      mediaQuery.addEventListener("change", updateTheme);
-    }
-
-    return () => {
-      if (theme === "system") {
-        mediaQuery.removeEventListener("change", updateTheme);
-      }
-    };
-  }, [theme]);
+    root.classList.remove("light", "dark");
+    root.classList.add(resolvedTheme);
+  }, [resolvedTheme]);
 
   // Apply transparency globally
   useEffect(() => {
@@ -105,20 +118,24 @@ export function ThemeProvider({
     }
   }, [transparency]);
 
-  const onSetTransparency = (transparency: number) => {
-    localStorage.setItem(STORAGE_KEYS.TRANSPARENCY, transparency.toString());
-    setTransparency(transparency);
-  };
-
-  const value = {
+  const value: ThemeProviderState = {
     theme,
+    resolvedTheme,
     setTheme: (newTheme: Theme) => {
       localStorage.setItem(storageKey, newTheme);
       setTheme(newTheme);
+      emit(THEME_SYNC_EVENT, { theme: newTheme } satisfies ThemeSyncPayload).catch(
+        () => {}
+      );
     },
-    isSystemThemeDark,
     transparency,
-    onSetTransparency,
+    onSetTransparency: (newTransparency: number) => {
+      localStorage.setItem(STORAGE_KEYS.TRANSPARENCY, newTransparency.toString());
+      setTransparency(newTransparency);
+      emit(THEME_SYNC_EVENT, {
+        transparency: newTransparency,
+      } satisfies ThemeSyncPayload).catch(() => {});
+    },
   };
 
   return (

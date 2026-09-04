@@ -209,6 +209,7 @@ export const Updater = () => {
       <PopoverTrigger asChild>
         <Button
           size="icon"
+          variant="outline"
           onClick={handleTriggerClick}
           className="cursor-pointer"
           disabled={updateState === "checking"}
